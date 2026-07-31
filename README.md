@@ -77,7 +77,9 @@ preflight.sh            # go/no-go checks (fabric, images, weights, conflicts)
 start-cluster.sh        # worker first, then head; polls /health
 stop-cluster.sh
 image/                  # Dockerfile, FA4 SM120 shim (+ fixes), bundle hardening script
-systemd/                # head/worker user units
+systemd/                # head/worker user units + de-streaming proxy unit
+proxy/                  # de-streaming proxy (Hermes tool-call workaround)
+hermes/                 # Hermes Agent profile, switch script, setup guide
 tests/                  # kernel self-tests: shim check, serving shapes, fuzzer, numerics, NCCL
 bench/                  # smoke.sh, probe.sh (C1/C8), cbench.py
 docs/                   # DEPLOYMENT, CONFIGURATION, KERNEL-FIX, TROUBLESHOOTING,
@@ -98,6 +100,8 @@ bash bench/probe.sh               # C1 + C8 throughput
 
 Full guide: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Anything that can go
 wrong (we hit it first): [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+Running an agent client (Hermes Agent) against the deployment, incl. the
+required de-streaming proxy: [hermes/README.md](hermes/README.md).
 
 ## Requirements
 

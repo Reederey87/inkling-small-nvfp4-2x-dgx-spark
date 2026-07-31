@@ -1,0 +1,148 @@
+# Hermes profile: Inkling-Small-NVFP4 (local 2xSpark cluster, via de-streaming
+# proxy 127.0.0.1:8002 -> vLLM :8001 — works around vLLM 0.26's inkling
+# STREAMING tool-parser leak; see proxy/ and docs/TROUBLESHOOTING.md).
+# Install with hermes/switch-hermes.sh inkling
+#
+# Key choices (and why):
+#   - base_url :8002 in BOTH model.base_url and providers.custom.base_url
+#     (a mismatch silently detaches the provider block — keep them identical;
+#     :8002 is the de-streaming proxy, REQUIRED for tool calls to work —
+#     direct :8001 leaks tool markup on the streaming path).
+#   - context_length 131072 (the served MAX_MODEL_LEN) with compaction retuned
+#     for that window (threshold_tokens 90000 binding trigger, prune 24000 /
+#     reclaim 8000 — prune stays below the compaction trigger; idle_compact
+#     stays 0 while compaction is local).
+#   - supports_vision: true — Inkling IS multimodal (smoke vision-red PASSED),
+#     so auxiliary.vision is `provider: main` (local; images never leave the
+#     box). web_extract/title_generation stay on cheap cloud models here —
+#     replace with your own provider as you see fit.
+#   - auxiliary.compression keeps provider: main with the off-spelling for
+#     THIS model: chat_template_kwargs.reasoning_effort: "none" (probe-verified;
+#     `thinking: false` is the DeepSeek spelling — accepted by the server but
+#     not Inkling's dial).
+#   - thinking: the serve-side default (REASONING_EFFORT=high in cluster.env)
+#     is what actually applies — Hermes does NOT forward agent.reasoning_effort
+#     for this provider (verified from a captured wire request).
+model:
+  provider: custom
+  base_url: http://127.0.0.1:8002/v1
+  default: inkling-small-nvfp4
+  context_length: 131072
+  supports_vision: true
+  api_mode: chat_completions
+  max_tokens: 65536
+# OPTIONAL cloud fallback rung — used only when the local server is unreachable.
+# Any OpenAI-compatible provider/model works here; delete the block to run
+# local-only (Hermes then has no fallback and surfaces local errors directly).
+fallback_providers:
+- provider: openai-api
+  model: gpt-5.5
+agent:
+  verify_on_stop: false
+  disabled_toolsets:
+  - computer_use
+  - video
+  - video_gen
+  - x_search
+  - homeassistant
+  - spotify
+  - yuanbao
+  max_turns: 60
+  reasoning_effort: high
+browser:
+  cdp_url: http://127.0.0.1:9222
+  allow_unsafe_evaluate: true
+  cloud_provider: local
+tool_output:
+  max_bytes: 400000
+  max_lines: 12000
+  max_line_length: 2000
+compression:
+  enabled: true
+  threshold: 0.65
+  threshold_tokens: 90000
+  proactive_prune_tokens: 24000
+  target_ratio: 0.2
+  protect_last_n: 20
+  protect_first_n: 3
+  model_thresholds:
+    inkling-small-nvfp4: 0.65
+  min_tail_user_messages: 3
+  idle_compact_after_seconds: 0
+  proactive_prune_min_result_chars: 8000
+  proactive_prune_min_reclaim_tokens: 8000
+  hygiene_hard_message_limit: 5000
+auxiliary:
+  vision:
+    provider: main
+    model: ''
+    timeout: 300
+  web_extract:
+    # OPTIONAL cloud auxiliary (needs an OpenAI-compatible key); swap for
+    # 'provider: main' to keep everything local (slower, competes with turns).
+    provider: openai-api
+    model: gpt-5.5
+    timeout: 360
+  title_generation:
+    # OPTIONAL cloud auxiliary; same swap applies.
+    provider: openai-api
+    model: gpt-5.5
+    timeout: 30
+  compression:
+    provider: main
+    model: ''
+    timeout: 1800
+    extra_body:
+      chat_template_kwargs:
+        reasoning_effort: none
+display:
+  show_reasoning: true
+  tool_progress: all
+tts:
+  provider: openai
+  openai:
+    model: gpt-4o-mini-tts
+    voice: alloy
+    speed: 1.0
+approvals:
+  destructive_slash_confirm: false
+command_allowlist:
+- script execution via -e/-c flag
+- script execution via heredoc
+onboarding:
+  seen:
+    busy_input_prompt: true
+    tool_progress_prompt: true
+_config_version: 33
+mcp_servers:
+  exa:
+    url: https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa,web_search_advanced_exa
+    headers:
+      x-api-key: ${EXA_API_KEY}
+      Accept: application/json, text/event-stream
+    tools:
+      include:
+      - web_search_exa
+      - web_fetch_exa
+      - web_search_advanced_exa
+      resources: false
+      prompts: false
+    enabled: true
+    timeout: 120
+    connect_timeout: 60
+plugins:
+  enabled: []
+image_gen:
+  provider: openai
+  model: gpt-image-2-medium
+providers:
+  custom:
+    base_url: http://127.0.0.1:8002/v1
+    request_timeout_seconds: 3600
+    stale_timeout_seconds: 900
+web:
+  backend: exa
+mcp_discovery_timeout: 30
+updates:
+  pre_update_backup: full
+  non_interactive_local_changes: stash
