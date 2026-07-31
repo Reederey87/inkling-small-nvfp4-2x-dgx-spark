@@ -41,3 +41,22 @@ suggesting an uninitialized/over-read whose fault depends on allocation layout.
 (b=1) calls in the dispatch shim — 200/200 fuzz cases clean; numerics bit-exact.
 **Repro:** tests/fa4_fuzz.py (seed 20260731); minimal: q=[6,512] kv=[6,512]
 global window, paged, score_mod+aux — ~3/8 crash rate pre-clamp.
+
+## Issue 3 — vLLM: inkling streaming tool parser leaks markup as content (agent-shaped requests)
+
+**Repo:** vllm-project/vllm (vllm/parser/inkling.py engine + streaming path)
+**Summary:** with `--tool-call-parser inkling` on an Inkling model, the
+**streaming** chat-completions path returns the model's
+`<|content_invoke_tool_json|>{"name":...,"args":{...}}` markup as plain content
+(`finish_reason=stop`) instead of parsing it into `tool_calls`, for
+agent-shaped requests (large system prompt ~26K chars, 30+ tool schemas).
+The **non-streaming** path parses the identical payload correctly every time.
+**Repro:** stream=True leaks 4/4; stream=False parses 6/6 (byte-identical
+request otherwise; repro payload = Hermes agent's real request: 32 tools,
+26K system prompt, no tool_choice, max_tokens 65536). Also reproduces with
+text-before-call in streaming; non-streaming handles every tested shape
+(text-before-call, 32 tools, tool_choice auto/required/absent).
+**Impact:** OpenAI-compatible agents that hardcode `stream: true` (Hermes and
+others) see raw markup and stall; the model itself is behaving correctly.
+**Workaround (shipped in this repo):** de-streaming proxy
+(`proxy/destream_proxy.py`) that strips `stream` before forwarding.

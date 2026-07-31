@@ -41,6 +41,20 @@ mix on this fabric (vLLM #46253 class). `--enforce-eager` is mandatory here.
 
 ## Serving failures
 
+### Agent clients show raw `<|content_invoke_tool_json|>{...}` markup and stall
+vLLM 0.26's **streaming** inkling tool parser leaks the tool-call markup as
+plain content for agent-shaped requests (large system prompt, 30+ tools).
+Measured with a byte-identical request: `stream=True` leaks 4/4 (markup in
+content deltas, `finish_reason=stop`), `stream=False` parses 6/6 into proper
+`tool_calls`. Non-streaming is correct in every tested shape (text-before-call,
+32 tools, `tool_choice` auto/required/absent). Agent clients that hardcode
+`"stream": true` (Hermes does, with no per-provider opt-out) display the raw
+markup and stop. Workaround shipped in `proxy/destream_proxy.py` (listens
+127.0.0.1:8002 → 8001, strips `stream`/`stream_options`; point the agent's
+base_url at 8002 — Hermes handles non-streamed responses natively) with
+`systemd/inkling-destream-proxy.service`. Upstream issue prepared in
+docs/UPSTREAM-ISSUES.md.
+
 ### First real request stalls forever; engine dies after ~10 min (RPC timeout)
 This was the window-1 blocker. Root cause: the SM120 FA4 kernel faults on
 varlen batches (docs/KERNEL-FIX.md). Async launch → hung stream; blocking

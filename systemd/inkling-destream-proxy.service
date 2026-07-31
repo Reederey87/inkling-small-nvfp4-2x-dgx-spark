@@ -1,0 +1,18 @@
+# systemd user unit for the de-streaming proxy (spark1, head node).
+# Installed by install-services.sh; started alongside the Inkling cluster.
+# Listens 127.0.0.1:8002 -> vLLM 127.0.0.1:8001 with stream stripped
+# (works around vLLM 0.26's inkling streaming tool-parser leak).
+[Unit]
+Description=Inkling de-streaming proxy (Hermes tool-call workaround)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/inkling-small-nvfp4
+ExecStart=/usr/bin/python3 %h/inkling-small-nvfp4/proxy/destream_proxy.py
+Restart=always
+RestartSec=2
+StartLimitBurst=20
+
+[Install]
+WantedBy=default.target
