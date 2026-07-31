@@ -1,0 +1,10 @@
+# site-specific config (copy cluster.env.example -> cluster.env)
+cluster.env
+.env.inkling
+# benchmark artifacts
+bench/results/
+# python
+__pycache__/
+*.pyc
+.DS_Store
+*.log

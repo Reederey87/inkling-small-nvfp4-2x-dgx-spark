@@ -1,0 +1,25 @@
+# systemd user unit for nvidia@spark1 (rank 0). Install via install-services.sh.
+# Deliberately NOT enabled (no boot auto-start) — start only via start-cluster.sh.
+# Coordination with the worker is script-level (preflight.sh) — systemd deps cannot
+# cross user managers or nodes.
+[Unit]
+Description=vLLM Inkling-Small-NVFP4 head (rank 0, TP=2)
+StartLimitIntervalSec=3600
+StartLimitBurst=6
+
+[Service]
+Type=simple
+WorkingDirectory=%h/inkling-small-nvfp4
+# Worst case: 3 boot-dep waits (300s) + peer wait (300s) + worker wait (600s)
+TimeoutStartSec=2100
+TimeoutStopSec=90
+ExecStartPre=/usr/bin/bash %h/inkling-small-nvfp4/preflight.sh head
+ExecStartPre=/usr/bin/bash %h/inkling-small-nvfp4/render-env.sh head
+ExecStart=/usr/bin/docker compose --env-file %h/inkling-small-nvfp4/.env.inkling -f %h/inkling-small-nvfp4/docker-compose.inkling.yml up --exit-code-from vllm-inkling
+ExecStop=/usr/bin/docker compose --env-file %h/inkling-small-nvfp4/.env.inkling -f %h/inkling-small-nvfp4/docker-compose.inkling.yml down -t 30
+ExecStopPost=-/usr/bin/docker rm -f vllm-inkling
+Restart=always
+RestartSec=20
+
+[Install]
+WantedBy=default.target

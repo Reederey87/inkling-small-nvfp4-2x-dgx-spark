@@ -1,0 +1,22 @@
+# systemd user unit for the worker node (rank 1, --headless). Install via install-services.sh.
+# Deliberately NOT enabled (no boot auto-start) — start only via start-cluster.sh.
+[Unit]
+Description=vLLM Inkling-Small-NVFP4 worker (rank 1, headless)
+StartLimitIntervalSec=3600
+StartLimitBurst=10
+
+[Service]
+Type=simple
+WorkingDirectory=%h/inkling-small-nvfp4
+TimeoutStartSec=900
+TimeoutStopSec=90
+ExecStartPre=/usr/bin/bash %h/inkling-small-nvfp4/preflight.sh worker
+ExecStartPre=/usr/bin/bash %h/inkling-small-nvfp4/render-env.sh worker
+ExecStart=/usr/bin/docker compose --env-file %h/inkling-small-nvfp4/.env.inkling -f %h/inkling-small-nvfp4/docker-compose.inkling.yml up --exit-code-from vllm-inkling
+ExecStop=/usr/bin/docker compose --env-file %h/inkling-small-nvfp4/.env.inkling -f %h/inkling-small-nvfp4/docker-compose.inkling.yml down -t 30
+ExecStopPost=-/usr/bin/docker rm -f vllm-inkling
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target
