@@ -11,7 +11,9 @@
 #   - context_length 131072 (the served MAX_MODEL_LEN) with compaction retuned
 #     for that window (threshold_tokens 90000 binding trigger, prune 24000 /
 #     reclaim 8000 — prune stays below the compaction trigger; idle_compact
-#     stays 0 while compaction is local).
+#     stays 0 while compaction is local). If the server runs the 1M lane
+#     (docs/CONTEXT-1M.md), swap in the commented 1M values at
+#     model.context_length and in the compression block below.
 #   - supports_vision: true — Inkling IS multimodal (smoke vision-red PASSED),
 #     so auxiliary.vision is `provider: main` (local; images never leave the
 #     box). web_extract/title_generation stay on cheap cloud models here —
@@ -27,6 +29,7 @@ model:
   provider: custom
   base_url: http://127.0.0.1:8002/v1
   default: inkling-small-nvfp4
+  # 1M lane (server MAX_MODEL_LEN=1048576, docs/CONTEXT-1M.md): 1048576
   context_length: 131072
   supports_vision: true
   api_mode: chat_completions
@@ -61,6 +64,9 @@ compression:
   enabled: true
   threshold: 0.65
   threshold_tokens: 90000
+  # 1M lane: threshold: 0.25, threshold_tokens: 260000,
+  # proactive_prune_tokens: 48000, proactive_prune_min_reclaim_tokens: 20000,
+  # model_thresholds.inkling-small-nvfp4: 0.25
   proactive_prune_tokens: 24000
   target_ratio: 0.2
   protect_last_n: 20

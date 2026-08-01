@@ -37,7 +37,25 @@ the same harness class — Inkling-Small lands in the same serving envelope
 (C8 ~94 tok/s) *without* speculative decoding enabled yet.
 
 Config knobs that move these numbers (context length ↔ KV pool ↔ prefill
-speed): [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+speed): [docs/CONFIGURATION.md](docs/CONFIGURATION.md). For the full
+**1,048,576-token context lane** (why bf16 KV suffices on vLLM — no fp4 KV
+exists for this model on vLLM yet — sizing math, config, gates):
+[docs/CONTEXT-1M.md](docs/CONTEXT-1M.md).
+
+### 1M-context lane (measured 2026-08-01, same cluster)
+
+`MAX_MODEL_LEN=1048576`, `MAX_NUM_BATCHED_TOKENS=768`, `MAX_NUM_SEQS=2`,
+`GPU_MEMORY_UTILIZATION=0.80` (startup gate only) +
+`KV_CACHE_MEMORY_BYTES=31675322368` (29.5 GiB — sizes the pool exactly and
+bypasses the profiler's workspace reservation):
+
+| Metric | Value | Notes |
+|---|---|---|
+| KV pool | **2,044,677 tokens** (1.95× @1M ctx) | bf16 KV, ~15.5 KiB/token/node |
+| Needle retrieval | **HIT at 700K, 950K, 1,020K** depths | plus 44K–423K; `bench/needle.py` |
+| Smoke | 7/7 | incl. vision-red |
+| Long-context prefill | ~1.8–2.4K tok/s | full-1M cold prefill ≈ 9–13 min TTFT (lane cost) |
+| Decode | pool-size-independent | matches the stock profile (~21 tok/s C1 class) |
 
 ## What it takes to serve this model on DGX Spark (work done)
 
@@ -81,8 +99,9 @@ systemd/                # head/worker user units + de-streaming proxy unit
 proxy/                  # de-streaming proxy (Hermes tool-call workaround)
 hermes/                 # Hermes Agent profile, switch script, setup guide
 tests/                  # kernel self-tests: shim check, serving shapes, fuzzer, numerics, NCCL
-bench/                  # smoke.sh, probe.sh (C1/C8), cbench.py
-docs/                   # DEPLOYMENT, CONFIGURATION, KERNEL-FIX, TROUBLESHOOTING,
+bench/                  # smoke.sh, probe.sh (C1/C8), cbench.py, needle.py (long-ctx probe)
+docs/                   # DEPLOYMENT, CONFIGURATION, CONTEXT-1M (1M-context lane),
+                        # KERNEL-FIX, TROUBLESHOOTING,
                         # NETWORKING, UPSTREAM-ISSUES (ready-to-file bug reports)
 ```
 
