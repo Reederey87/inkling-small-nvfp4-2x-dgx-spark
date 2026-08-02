@@ -16,7 +16,7 @@ H200×2, not 121 GiB UMA per node).
 | `ENFORCE_EAGER` | 1 | **Required.** Piecewise cudagraphs crash cross-node on this fabric (#46253 class). Re-test after a vLLM upgrade. |
 | `DISABLE_CUSTOM_ALL_REDUCE` | 1 | PYNCCL-only (#41725 class safety). No measured cost at TP=2 over 23 GB/s. |
 | `MOE_BACKEND` | empty (auto) | Inkling has NVFP4 routed + BF16 shared experts; a global backend must satisfy both — `cutlass` hard-fails the unquantized family. Auto resolves per family (FLASHINFER_CUTLASS for both on SM121). |
-| `MTP_NUM_TOKENS` | empty (off) | MTP speculative decoding: SM121's 99 KB SMEM + K=128 tile history is a qualification project, not a baseline. Try `2` after the stack is green. |
+| `MTP_NUM_TOKENS` | empty (off) | MTP speculative decoding. **Only `1` is accepted** — vLLM 0.26 hard-rejects n≠1 for `inkling_mtp` ("exactly one speculative token") and loads only checkpoint depth 0 of the 8 NextN layers (BF16). **Measured (1M lane, 2026-08-02 A/B): C1 21.72 → 29.21 tok/s (+34.5%), acceptance 0.50–0.55; C2 −3.6%** (verify + FA4 batch-split overhead ≈ gain at b=2). On the 1M lane shave the KV pin 29.5 → 28.5 GiB for the drafter (see CONTEXT-1M.md). |
 | `REASONING_EFFORT` | high | Inkling chat-template dial. Thinking shares the output token budget — size `max_tokens` accordingly. |
 | `--tokenizer-mode inkling` / `--reasoning-parser inkling` / `--tool-call-parser inkling` / `--enable-auto-tool-choice` | on | The model's required serving configuration (from the official recipe). |
 | `--kernel-config.enable_flashinfer_autotune=False` | off | Recipe flag; avoids first-step autotune stalls. |
