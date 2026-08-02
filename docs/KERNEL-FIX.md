@@ -41,7 +41,9 @@ nondeterminism (~37% on a `(6,512)` two-seq batch).
 
 **Proof chain (all harnesses in `tests/`):**
 - `fa4_fuzz.py`: 200 randomized serving shapes; crash envelope is `b>=2`,
-  `q_len>1` batches; single-seq never crashes.
+  `q_len>1` batches; single-seq never crashes. (2026-08-02: + a fourth
+  `specverify` style — uniform small `q_len` 2–4 per sequence with long KV,
+  the MTP verify-step shape; 300/300 clean including 67 specverify cases.)
 - Padding `rel_logits` by 8192 rows → 8/8 crash-free (pad-out and pad-block-table
   controls don't stabilize it).
 - Clamping `global_q_idx` to `rel_logits.shape[0]-1` → the (6,512) class goes

@@ -23,8 +23,11 @@ DEV = "cuda"
 
 
 def one_case(idx, hq, hkv, rng):
-    # serving-realistic batch shapes: decode-only, prefill-only, or mixed
-    style = rng.choice(["decode", "prefill", "mixed"])
+    # serving-realistic batch shapes: decode-only, prefill-only, mixed, or
+    # specverify (MTP verify steps: uniform q_len = n+1 per seq, long kv —
+    # the shape class the b>=2 batch-split predicate intercepts when
+    # speculative decoding is enabled)
+    style = rng.choice(["decode", "prefill", "mixed", "specverify"])
     b = rng.randint(1, 8)
     if style == "decode":
         q_lens = [1] * b
@@ -33,6 +36,11 @@ def one_case(idx, hq, hkv, rng):
     elif style == "prefill":
         q_lens = [rng.choice([2, 6, 17, 100, 511, 512, 777, 1024]) for _ in range(b)]
         kv_lens = q_lens  # fresh prefill: seq == q
+    elif style == "specverify":
+        n1 = rng.choice([2, 3, 4])  # num_speculative_tokens + 1
+        q_lens = [n1] * b
+        kv_lens = [rng.choice([7, 100, 511, 1000, 4096, 30000, 131072])
+                   for _ in range(b)]
     else:  # mixed decode + chunked-prefill continuation
         q_lens = [1] * (b // 2) + [rng.choice([128, 511, 1024]) for _ in range(b - b // 2)]
         kv_lens = ([rng.choice([1, 100, 4096, 30000]) for _ in range(b // 2)]

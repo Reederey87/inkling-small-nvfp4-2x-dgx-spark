@@ -81,7 +81,16 @@ Pin-size guide (at ~15.5 KiB/token/node):
 |---|---|---|
 | ~17 GiB (`18253611008`) | ~1.1M | minimal 1M lane, max system margin |
 | ~24 GiB (`25769803776`) | ~1.55M | headroom choice |
+| 28.5 GiB (`30601641984`) | **1,950,538 (measured)** | **1M lane + MTP drafter on** |
 | **29.5 GiB (`31675322368`)** | **~2.04M (measured)** | 2× full-length concurrency |
+
+**MTP drafter headroom (2026-08-02):** with `MTP_NUM_TOKENS=1` the engine loads
+the checkpoint's NextN depth-0 block (BF16, ~0.3 GiB/node TP-sharded) plus a
+1-layer draft KV and the rejection sampler — but the pin bypasses the profiler
+that would otherwise reserve for them, so shave the pin by ~1 GiB (29.5 → 28.5,
+measured pool above). If boot or first-token OOMs ever appear on other rigs,
+drop another 0.5–1 GiB; the byte-pin path has no safety check by design
+(`gpu_worker.py` skips memory profiling when `--kv-cache-memory-bytes` is set).
 
 ## Why not fp4/NVFP4 KV cache on vLLM? (the SGLang trick, examined)
 
